@@ -36,15 +36,16 @@ mcpnertes
 
 Add to the client's MCP server config. The policy (namespace allow/deny,
 resource block) is set directly in `env` — no `config.toml` file needed.
-Once published to PyPI, `uvx` will fetch and run it without a local install:
+`uvx` fetches and runs it from PyPI without a local install:
 
 ```json
 {
   "mcpServers": {
     "mcpnertes": {
       "command": "uvx",
-      "args": ["mcpnertes@latest"],
+      "args": ["mcpnertes"],
       "env": {
+        "UV_HTTP_TIMEOUT": "120",
         "MCPNERTES_NAMESPACE_ALLOW": "*",
         "MCPNERTES_NAMESPACE_DENY": "kube-system,cert-manager",
         "MCPNERTES_RESOURCE_BLOCK": "Secret"
@@ -54,9 +55,20 @@ Once published to PyPI, `uvx` will fetch and run it without a local install:
 }
 ```
 
-All three env vars are optional and comma-separated. Omit any of them to
-fall back to `config.toml` (if present) or the built-in default (allow all
-namespaces, block `Secret`).
+`args` must be plain `mcpnertes`, not `mcpnertes@latest` — `@latest` is
+npm/npx syntax, not a valid `uv`/`pip` version specifier, and `uvx` will
+hang trying to resolve it until the MCP client's connect timeout kills it.
+Plain `mcpnertes` always resolves to the newest PyPI release.
+
+`UV_HTTP_TIMEOUT` is optional but recommended on a cold cache: the first
+`uvx` run downloads the `kubernetes` dependency (~4.4MiB) and `uv`'s
+default 30s HTTP timeout can be too short on a slow connection, causing
+the same "connection timed out" symptom. 120s comfortably covers a cold
+install; subsequent runs use `uv`'s cache and start in milliseconds.
+
+All three `MCPNERTES_*` env vars are optional and comma-separated. Omit
+any of them to fall back to `config.toml` (if present) or the built-in
+default (allow all namespaces, block `Secret`).
 
 **Not yet on PyPI?** Point `uvx` at this checkout instead:
 
